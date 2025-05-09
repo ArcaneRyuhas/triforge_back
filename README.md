@@ -1,3 +1,14 @@
 # triforge_back
-1.- Run the command "python -m venv venv"
-2.- Then run the command "pip install -r requirements.txt" to install all dependencies.
+
+Backend application that uses LangChain, FastAPI, and OpenAI to process requirements prompts and generate system artifacts (documents, diagrams, and code).
+
+## 🛠 Setup Instructions
+
+1. **Create a virtual environment**
+   ```bash
+   python -m venv venv
+   
+2. **Run the following command to install all dependencies**
+   ```bash
+   pip install -r requirements.txt
+
