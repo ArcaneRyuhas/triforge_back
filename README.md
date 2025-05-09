@@ -1,4 +1,4 @@
-# triforge_back
+# Triforge backend
 
 Backend application that uses LangChain, FastAPI, and OpenAI to process requirements prompts and generate system artifacts (documents, diagrams, and code).
 
