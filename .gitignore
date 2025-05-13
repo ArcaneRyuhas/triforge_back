@@ -11,6 +11,7 @@ env/
 ENV/
 .venv/
 .Python
+.env
 
 # Pip cache
 pip-log.txt
