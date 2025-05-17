@@ -1,0 +1,148 @@
+.main{
+    flex: 1;
+    min-height: 100vh;
+    padding-bottom: 15vh;
+    position: relative;
+}
+
+.main .nav{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 22px;
+    padding: 20px;
+    color: #585858;
+
+}
+
+.main .nav img{
+    width: 40px;
+    border-radius: 50%;
+}
+
+.main-container{
+    max-width: 900px;
+    margin: auto;
+}
+
+.main .greet{
+    margin: 50px 0px;
+    font-size: 56px;
+    color: #c4c7c5;
+    font-weight: 500;
+    padding: 20px;
+}
+
+.main .greet span{
+    background: -webkit-linear-gradient(16deg, #fddae3, #c41f4f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.main .cards{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}
+
+.main .card{
+    height: 200px;
+    padding: 15px;
+    background-color: #efefed;
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+}
+
+.card p{
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.main .card img{
+    width: 35px;
+    padding: 5px;
+    position: absolute;
+    background-color: white;
+    border-radius: 20px;
+    bottom: 10px;
+    right: 10px;
+}
+
+.main .card p{
+    color: #585858;
+    color: #c72b59;
+    font-size: 17px;
+}
+
+.main .card:hover{
+    background-color: #e7e5e3;
+}
+
+.main-bottom{
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    max-width: 900px;
+    padding: 0px 20px;
+    margin: auto;
+}
+
+.search-box{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background-color: #efefed;
+    padding: 10px 20px;
+    border-radius: 50px;
+}
+
+.search-box img{
+    width: 24px;
+    cursor: pointer;
+}
+
+.search-box input{
+    flex: 1;
+    background-color: transparent;
+    border: none;
+    outline: none;
+    padding: 8px;
+    font-size: 18px;
+}
+
+.search-box div{
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.main .bottom-info{
+    font-size: 13px;
+    margin: 15px auto;
+    text-align: center;
+    font-weight: 300;
+    color: #585858;
+}
+
+.card button{
+    background-color: #f6c3d1;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 15px;
+    margin: 2px;
+    opacity: .3;
+    color: #c72b59;
+}
+
+.card button:hover{
+    opacity: 1;
+    box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
+}
+
+.card .active{
+    opacity: 1;
+    box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
+}
