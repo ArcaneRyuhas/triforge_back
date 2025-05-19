@@ -12,7 +12,7 @@ const Sidebar = () => {
         <div className="top">
             <img onClick={()=>setExtended(prev=>!prev)} className='menu' src={assets.menu_icon} alt='menu icon'/>
             <div className="new-chat">
-                <img src={assets.plus_icon} alt='expand icon'/>
+                <img src={assets.plus_icon} alt='expand icon' style={{ filter: 'hue-rotate(200deg)' }}/>
                 {extended ? <p>New Project</p> : null}
             </div>
             {extended ? 

@@ -1,86 +1,87 @@
-.main{
+.main {
     flex: 1;
     min-height: 100vh;
     padding-bottom: 15vh;
     position: relative;
+    background-color: #f0f0f0; /* Dark grayish blue (body background) */
 }
 
-.main .nav{
+.main .nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-size: 22px;
     padding: 20px;
-    color: #585858;
-
+    color: #d2dae2; /* Light grayish white (primary text) */
 }
 
-.main .nav img{
+.main .nav img {
     width: 40px;
     border-radius: 50%;
+    /* Keep original style if it fits your image aesthetic */
 }
 
-.main-container{
+.main-container {
     max-width: 900px;
     margin: auto;
 }
 
-.main .greet{
+.main .greet {
     margin: 50px 0px;
     font-size: 56px;
-    color: #c4c7c5;
+    color: #54a0ff; /* Vibrant blue for greeting */
     font-weight: 500;
     padding: 20px;
 }
 
-.main .greet span{
-    background: -webkit-linear-gradient(16deg, #fddae3, #c41f4f);
+.main .greet span {
+    background: -webkit-linear-gradient(16deg, #a29bfe, #48dbfb); /* Purple to cyan gradient */
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    /* Consider a blue to cyan or light blue gradient: #74b9ff, #48dbfb */
 }
 
-.main .cards{
+.main .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 15px;
     padding: 15px;
 }
 
-.main .card{
+.main .card {
     height: 200px;
     padding: 15px;
-    background-color: #efefed;
+    background-color: #f0f0f0; /* Slightly lighter dark blue (container background) */
     border-radius: 10px;
     position: relative;
     cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
 }
 
-.card p{
+.card p {
     text-align: center;
     margin-bottom: 20px;
+    color: #484f58; /* Slightly lighter gray (paragraph text in cards) */
+    font-size: 17px;
 }
 
-.main .card img{
+.main .card img {
     width: 35px;
     padding: 5px;
     position: absolute;
-    background-color: white;
+    background-color: #48dbfb; /* Cyan for image background */
     border-radius: 20px;
     bottom: 10px;
     right: 10px;
 }
 
-.main .card p{
-    color: #585858;
-    color: #c72b59;
-    font-size: 17px;
+.main .card:hover {
+    background-color: #bbd2f5; /* Darker blue-gray on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Slightly stronger shadow on hover */
 }
 
-.main .card:hover{
-    background-color: #e7e5e3;
-}
-
-.main-bottom{
+.main-bottom {
     position: absolute;
     bottom: 0;
     width: 100%;
@@ -89,60 +90,64 @@
     margin: auto;
 }
 
-.search-box{
+.search-box {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    background-color: #efefed;
+    background-color: #f0f0f0; /* Slightly lighter dark blue (search box background) */
     padding: 10px 20px;
     border-radius: 50px;
 }
 
-.search-box img{
+.search-box img {
     width: 24px;
     cursor: pointer;
+    filter: brightness(1.5); /* Lighten the search icon */
 }
 
-.search-box input{
+.search-box input {
     flex: 1;
     background-color: transparent;
     border: none;
     outline: none;
     padding: 8px;
     font-size: 18px;
+    color: #5d5e5f; /* Light grayish white (input text) */
 }
 
-.search-box div{
+.search-box div {
     display: flex;
     align-items: center;
     gap: 15px;
 }
 
-.main .bottom-info{
+.main .bottom-info {
     font-size: 13px;
     margin: 15px auto;
     text-align: center;
     font-weight: 300;
-    color: #585858;
+    color: #ced6e0; /* Slightly lighter gray (bottom info text) */
 }
 
-.card button{
-    background-color: #f6c3d1;
+.card button {
+    background-color: #48dbfb; /* Cyan for button background */
     border: none;
     border-radius: 20px;
     padding: 5px 15px;
     margin: 2px;
-    opacity: .3;
-    color: #c72b59;
+    opacity: 0.7; /* Slightly more visible initial opacity */
+    color: #1e272e; /* Dark text on the cyan button */
+    cursor: pointer;
+    transition: opacity 0.3s ease, box-shadow 0.3s ease;
 }
 
-.card button:hover{
+.card button:hover {
     opacity: 1;
-    box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow on hover */
 }
 
-.card .active{
+.card .active {
     opacity: 1;
-    box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Apply hover style to active button */
 }
