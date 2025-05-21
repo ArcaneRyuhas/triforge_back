@@ -1,5 +1,4 @@
 fastapi
-sqlalchemy
 python-dotenv
 boto3
 langchain
