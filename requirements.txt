@@ -2,5 +2,7 @@ fastapi
 python-dotenv
 boto3
 langchain
-
-# cambio keren :) 
+pydantic
+langchain[all]
+google.generativeai
+langchain[google]

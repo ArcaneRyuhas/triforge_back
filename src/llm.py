@@ -56,6 +56,19 @@ class ModifyJiraStoriesRequest(BaseModel):
     original_stories: Optional[str] = None 
     agent_type: Optional[str] = "documentation"
 
+class DiagramGenerationRequest(BaseModel):
+    diagram_format: str = "Mermaid.js"
+    user_id: Optional[str] = None
+    diagram_type: Optional[str] = None
+    jira_stories: Optional[str] = None
+    agent_type: Optional[str] = "diagram"
+
+class ModifyDiagramRequest(BaseModel):
+    user_id: str
+    modification_prompt: str
+    original_diagram_code: Optional[str] = None
+    agent_type: Optional[str] = "diagram"
+
 class ConversationResponse(BaseModel):
     user_id: str
     response: str
@@ -87,7 +100,7 @@ def get_conversation_chain(user_id: str, agent_type: str = "general", k: int = 4
             max_tokens = 100
         elif agent_type == "diagram":
             temperature = 0.0
-            max_tokens = 100
+            max_tokens = 200
         elif agent_type == "code":
             temperature = 0.0
             max_tokens = 100
@@ -121,7 +134,7 @@ def create_documentation_chain(user_id: str) -> LLMChain:
         temperature=0.4,
         top_p=0.95,
         top_k=40,
-        max_output_tokens=300,
+        max_output_tokens=400,
         google_api_key=api_key,
     )
     
@@ -156,10 +169,10 @@ def create_jira_modification_chain(user_id: str) -> LLMChain:
     """Create a specialized chain for modifying existing Jira stories based on new requirements."""
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
-        temperature=0.0,
+        temperature=0.1,
         top_p=0.95,
         top_k=40,
-        max_output_tokens=300,
+        max_output_tokens=400,
         google_api_key=api_key,
     )
     
@@ -173,6 +186,8 @@ Please modify the existing Jira stories to incorporate these additional requirem
 2. Add new acceptance criteria to existing stories
 3. Add entirely new stories if needed
 4. Adjust story points or priorities if appropriate
+5. Do not add any nodes or edges unless explicitly requested
+6. Do not refactor existing flows unless instructed
 
 Maintain the same format as the original stories:
 - Clear title in the format "As a [user type], I want to [action] so that [benefit]"
@@ -181,7 +196,7 @@ Maintain the same format as the original stories:
 - Story points (1, 2, 3, 5, 8, 13)
 - Priority (Highest, High, Medium, Low, Lowest)
 
-Format the output in Markdown with each story as a separate section.
+Format the output in Markdown with each story as a separate section. Please ensure that you strictly adhere to only the changes outlined in the 'Modification Request' and make no other changes.
 Highlight the changes you've made by placing [MODIFIED] or [NEW] tags next to modified or new elements.
 
 Chat History:
@@ -199,6 +214,100 @@ Chat History:
     
     # Create and return the chain
     return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+# Third Chain: Diagram Generation
+def create_diagram_generation_chain(user_id: str) -> LLMChain:
+    """Create a specialized chain for generating diagrams based on Jira stories."""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0,  
+        top_p=0.95,
+        top_k=40,
+        max_output_tokens=300,  
+        google_api_key=api_key,
+    )
+    
+    # Template for diagram generation
+    diagram_template = """You are a software architect who creates diagrams based on Jira user stories.
+
+{input}
+
+Please create a diagram that represents the system described in these Jira stories.
+
+The output should be in Mermaid.js format:
+- Use appropriate Mermaid syntax based on the diagram type
+- Include all key entities, actors, and their relationships
+- Use clear labels and descriptive text
+- Include all important user flows mentioned in the requirements
+- Make sure the diagram is valid Mermaid.js syntax
+
+IMPORTANT: Return ONLY the Mermaid.js code without any explanations, preamble, or ```mermaid tags. Do not wrap the code in markdown code blocks. The response should start directly with the Mermaid syntax (like "graph TD" or "sequenceDiagram").
+
+Reference for diagram types and their Mermaid.js syntax:
+- flowchart: graph TD or graph LR
+- sequence: sequenceDiagram
+- class: classDiagram
+- entity-relationship: erDiagram
+- state: stateDiagram-v2
+- gantt: ganttChart
+- user journey: journey
+
+Chat History:
+{chat_history}
+"""
+    
+    # Prompt with only input and chat_history variables (removed diagram_type)
+    prompt = PromptTemplate(
+        input_variables=["input", "chat_history"],
+        template=diagram_template
+    )
+    
+    # Use the shared memory for this user
+    memory = get_or_create_shared_memory(user_id)
+    
+    # Create and return the chain
+    return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+# Fourth Chain: Modify Diagram
+def create_diagram_modification_chain(user_id: str) -> LLMChain:
+    """Create a specialized chain for modifying existing Mermaid.js diagrams."""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0, # Low temperature for precise modifications
+        top_p=0.95,
+        top_k=40,
+        max_output_tokens=300,
+        google_api_key=api_key,
+    )
+    
+    # Template for diagram modification
+    modification_template = """You are a software architect who modifies existing Mermaid.js diagrams.
+
+{input}
+
+Please modify the provided Mermaid.js diagram based *strictly* on the "Modification Request".
+Ensure the modified diagram remains valid Mermaid.js syntax.
+Maintain the diagram type (e.g., flowchart, sequence) of the original diagram unless explicitly told to change it.
+
+**CRITICAL INSTRUCTION:**
+- **ONLY** make the changes explicitly described in the "Modification Request".
+- **DO NOT** add any new nodes, edges, or alter any existing parts of the diagram *unless specifically commanded to by the "Modification Request"*.
+- **DO NOT** refactor, simplify, or improve existing flows or elements that are not directly targeted by the "Modification Request".
+- The output should be the **complete, valid Mermaid.js code for the entire diagram**.
+- **DO NOT** include any explanations, preamble, or markdown code block tags (```mermaid or ```).
+
+Chat History:
+{chat_history}
+"""
+    
+    prompt = PromptTemplate(
+        input_variables=["input", "chat_history"],
+        template=modification_template
+    )
+    
+    memory = get_or_create_shared_memory(user_id)
+    return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
 
 # Request handlers
 @app.get("/")
@@ -298,3 +407,190 @@ Additional Requirements/Feedback:
     )
     
     return ConversationResponse(user_id=user_id, response=response)
+
+## Diagram generation endpoint
+@app.post("/generate/diagram", response_model=ConversationResponse)
+async def generate_diagram(request: DiagramGenerationRequest):
+    """Generate a diagram based on Jira stories and diagram type."""
+    user_id = request.user_id or str(uuid4())
+
+    # Get the diagram generation chain
+    diagram_chain = create_diagram_generation_chain(user_id)
+
+    # If Jira stories aren't provided, try to find them in memory
+    jira_stories = request.jira_stories
+    if not jira_stories and user_id in shared_memories:
+        memory = shared_memories[user_id]
+        memory_messages = memory.chat_memory.messages
+
+        # Iterate through messages in reverse to find the last AI response that looks like Jira stories
+        for msg in reversed(memory_messages):
+            if hasattr(msg, 'type') and msg.type == 'ai':
+                # A simple heuristic: check for Markdown headers that might indicate Jira stories
+                # This could be refined based on the exact output format of generate_jira_stories
+                if re.search(r"##\s*As a\s*", msg.content) or "story points" in msg.content.lower():
+                    jira_stories = msg.content
+                    break
+
+    # If we still don't have Jira stories, return an error
+    if not jira_stories:
+        raise HTTPException(
+            status_code=400,
+            detail="No Jira stories provided or found in conversation history. Please generate stories first or provide them."
+        )
+
+    # Validate diagram type
+    diagram_type = request.diagram_type
+    if not diagram_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Diagram type (e.g., 'flowchart', 'sequence', 'class') is required."
+        )
+    
+    # Map common terms to Mermaid diagram types
+    diagram_type_mapping = {
+        "flow": "flowchart",
+        "flowchart": "flowchart",
+        "sequence": "sequence", 
+        "class": "class",
+        "er": "entity-relationship",
+        "entity relationship": "entity-relationship",
+        "state": "state",
+        "gantt": "gantt",
+        "user journey": "user journey",
+        "journey": "user journey"
+    }
+    
+    # Normalize diagram type
+    normalized_diagram_type = diagram_type.lower()
+    if normalized_diagram_type in diagram_type_mapping:
+        normalized_diagram_type = diagram_type_mapping[normalized_diagram_type]
+    
+    # Combine the inputs into a single input string including the diagram type
+    combined_input = f"""Jira User Stories:
+{jira_stories}
+
+Diagram Type: {normalized_diagram_type}
+"""
+    
+    # Add the interaction to shared memory
+    shared_memory = get_or_create_shared_memory(user_id)
+    shared_memory.save_context(
+        {"input": f"Generate a {normalized_diagram_type} diagram for these Jira stories"}, 
+        {"output": "Processing diagram generation request..."}
+    )
+    
+    # Run the chain with only the combined input (no diagram_type parameter)
+    response = diagram_chain.run(input=combined_input)
+    
+    # Clean the output to ensure we get only the Mermaid code
+    clean_response = response.strip()
+    
+    # Remove markdown code block syntax if present
+    if clean_response.startswith("```mermaid"):
+        clean_response = clean_response[len("```mermaid"):].strip()
+    if clean_response.startswith("```"):
+        clean_response = clean_response[3:].strip()
+    if clean_response.endswith("```"):
+        clean_response = clean_response[:-3].strip()
+        
+    # Remove common prefixes the model might add
+    prefixes_to_remove = [
+        "Here's a Mermaid.js diagram:",
+        "Here is the Mermaid.js diagram:",
+        "Here's the diagram:",
+        "Mermaid.js code:",
+        "Diagram:"
+    ]
+    
+    for prefix in prefixes_to_remove:
+        if clean_response.startswith(prefix):
+            clean_response = clean_response[len(prefix):].strip()
+    
+    # Save the generated diagram to memory
+    shared_memory.save_context(
+        {"input": f"Generate a {normalized_diagram_type} diagram"}, 
+        {"output": clean_response}
+    )
+    
+    return ConversationResponse(user_id=user_id, response=clean_response)
+
+## Diagram modification endpoint
+@app.post("/modify_diagram", response_model=ConversationResponse)
+async def modify_diagram(request: ModifyDiagramRequest):
+    """Modify an existing Mermaid.js diagram based on a modification prompt."""
+    user_id = request.user_id or str(uuid4())
+    
+    # Get the diagram modification chain
+    modification_chain = create_diagram_modification_chain(user_id)
+    
+    # If original_diagram_code isn't provided, try to find it in memory
+    original_diagram_code = request.original_diagram_code
+    if not original_diagram_code and user_id in shared_memories:
+        memory = shared_memories[user_id]
+        memory_messages = memory.chat_memory.messages
+        
+        for msg in reversed(memory_messages):
+            if hasattr(msg, 'type') and msg.type == 'ai':
+                # Heuristic to identify Mermaid.js diagrams from previous AI output
+                # Check for common Mermaid.js starting keywords
+                if msg.content.strip().startswith(("graph", "sequenceDiagram", "classDiagram", "erDiagram", "stateDiagram", "gantt", "journey")):
+                    original_diagram_code = msg.content
+                    break
+    
+    # If we still don't have original diagram code, return an error
+    if not original_diagram_code:
+        raise HTTPException(
+            status_code=400, 
+            detail="No original diagram code provided or found in conversation history. Please generate a diagram first or provide the code."
+        )
+    
+    # Combine the inputs into a single input string for the LLM
+    combined_input = f"""Existing Mermaid.js Diagram:
+{original_diagram_code}
+
+Modification Request:
+"{request.modification_prompt}"
+"""
+    
+    # Add the interaction to shared memory
+    shared_memory = get_or_create_shared_memory(user_id)
+    shared_memory.save_context(
+        {"input": f"Request to modify diagram: {request.modification_prompt}"}, 
+        {"output": "Processing diagram modification request..."}
+    )
+    
+    # Run the chain with the single combined input
+    response = modification_chain.run(input=combined_input)
+    
+    # Clean the output to ensure we get only the Mermaid code
+    clean_response = response.strip()
+    
+    # Remove markdown code block syntax if present
+    if clean_response.startswith("```mermaid"):
+        clean_response = clean_response[len("```mermaid"):].strip()
+    if clean_response.startswith("```"):
+        clean_response = clean_response[3:].strip()
+    if clean_response.endswith("```"):
+        clean_response = clean_response[:-3].strip()
+        
+    # Remove common prefixes the model might add
+    prefixes_to_remove = [
+        "Here's the modified Mermaid.js diagram:",
+        "Here is the modified Mermaid.js diagram:",
+        "Modified Diagram:",
+        "Mermaid.js code:",
+        "Diagram:"
+    ]
+    
+    for prefix in prefixes_to_remove:
+        if clean_response.startswith(prefix):
+            clean_response = clean_response[len(prefix):].strip()
+            
+    # Save the modified diagram to memory
+    shared_memory.save_context(
+        {"input": "Please update the diagram"}, 
+        {"output": clean_response}
+    )
+    
+    return ConversationResponse(user_id=user_id, response=clean_response)
