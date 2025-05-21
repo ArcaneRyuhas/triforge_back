@@ -100,7 +100,7 @@ def get_conversation_chain(user_id: str, agent_type: str = "general", k: int = 4
             max_tokens = 100
         elif agent_type == "diagram":
             temperature = 0.0
-            max_tokens = 200
+            max_tokens = 300
         elif agent_type == "code":
             temperature = 0.0
             max_tokens = 100
