@@ -59,8 +59,8 @@ class ModifyJiraStoriesRequest(BaseModel):
 class DiagramGenerationRequest(BaseModel):
     diagram_format: str = "Mermaid.js"
     user_id: Optional[str] = None
-    diagram_type: Optional[str] = None
     jira_stories: Optional[str] = None
+    diagram_type: Optional[str] = None
     agent_type: Optional[str] = "diagram"
 
 class ModifyDiagramRequest(BaseModel):
@@ -68,6 +68,19 @@ class ModifyDiagramRequest(BaseModel):
     modification_prompt: str
     original_diagram_code: Optional[str] = None
     agent_type: Optional[str] = "diagram"
+
+class CodeGenerationRequest(BaseModel):
+    user_id: str
+    programming_language: str = "Python"
+    diagram_code: Optional[str] = None
+    jira_stories: Optional[str] = None
+    agent_type: Optional[str] = "code"
+
+class ModifyCodeRequest(BaseModel):
+    user_id: str
+    modification_prompt: str
+    original_code: Optional[str] = None
+    agent_type: Optional[str] = "code"
 
 class ConversationResponse(BaseModel):
     user_id: str
@@ -308,11 +321,134 @@ Chat History:
     memory = get_or_create_shared_memory(user_id)
     return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
+# Fifth Chain: Code Generation
+def create_code_generation_chain(user_id: str) -> LLMChain:
+    """Create a specialized chain for generating code based on diagrams or Jira stories."""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0,
+        top_p=0.95,
+        top_k=40,
+        max_output_tokens=300,
+        google_api_key=api_key,
+    )
+
+    code_template = """You are a senior software engineer. Your task is to generate clean, functional code for a system described by the provided diagrams and/or Jira stories.
+
+{input}
+
+Please generate code based on the programming language specified in the input.
+- Ensure the code adheres to good coding practices.
+- Add comments where necessary for clarity.
+- Focus on the core logic and functionalities described.
+- If a diagram is provided, prioritize it for the structure and flow of the code.
+- If Jira stories are provided, ensure all acceptance criteria are considered.
+- If both are provided, the diagram dictates the overall structure, and Jira stories provide detailed requirements for each component.
+
+IMPORTANT:
+- Return ONLY the code. Do NOT include any explanations, preambles, or markdown code block tags (```python, ```java, etc.) unless specifically asked to wrap the code in a markdown block. The response should start directly with the code.
+- If the request is for a specific programming language, provide code only in that language.
+
+Chat History:
+{chat_history}
+"""
+
+    prompt = PromptTemplate(
+        input_variables=["input", "chat_history"],
+        template=code_template
+    )
+
+    memory = get_or_create_shared_memory(user_id)
+    return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+# Sixth chain: Modify Code
+def create_code_modification_chain(user_id: str) -> LLMChain:
+    """Create a specialized chain for modifying existing code."""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0, 
+        top_p=0.95,
+        top_k=40,
+        max_output_tokens=300,
+        google_api_key=api_key,
+    )
+    
+    # Template for code modification
+    modification_template = """You are a senior software engineer who modifies existing code based on specific requirements.
+
+{input}
+
+Please modify the provided code based *strictly* on the "Modification Request".
+Ensure the modified code remains functional and follows good coding practices.
+Maintain the programming language and overall structure of the original code unless explicitly told to change it.
+
+**CRITICAL INSTRUCTION:**
+- **ONLY** make the changes explicitly described in the "Modification Request".
+- **DO NOT** add any new functions, classes, or alter any existing parts of the code *unless specifically commanded to by the "Modification Request"*.
+- **DO NOT** refactor, optimize, or improve existing code that is not directly targeted by the "Modification Request".
+- The output should be the **complete, functional code**.
+- **DO NOT** include any explanations, preamble, or markdown code block tags (```python, ```java, etc.) unless specifically asked to wrap the code in a markdown block.
+
+Chat History:
+{chat_history}
+"""
+    
+    prompt = PromptTemplate(
+        input_variables=["input", "chat_history"],
+        template=modification_template
+    )
+    
+    memory = get_or_create_shared_memory(user_id)
+    return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
 # Request handlers
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "API running correctly with LangChain integration"}
+## Conversation endpoint
+@app.post("/conversation", response_model=ConversationResponse)
+async def handle_conversation(message: Message):
+    """Handle a conversational message from the user."""
+    try:
+        # Ensure user has an ID
+        if not message.user_id:
+            message.user_id = str(uuid4())
+        
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            temperature=0.2,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=100,
+            google_api_key=api_key,
+        )
+
+        memory = get_or_create_shared_memory(message.user_id)
+
+        conversation_template = """
+        You are a helpful assistant. Answer the user's question based on the conversation history.
+        
+        Chat History:
+        {chat_history}
+        
+        User: {input}
+        Assistant: """
+        
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=conversation_template
+        )
+        chain = LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+        response = chain.predict(input=message.content)
+
+        return ConversationResponse(
+            user_id=message.user_id,
+            response=response
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error in conversation: {str(e)}")
+     
 
 ## Documentation generation endpoint
 @app.post("/generate/jira-stories")
@@ -590,6 +726,210 @@ Modification Request:
     # Save the modified diagram to memory
     shared_memory.save_context(
         {"input": "Please update the diagram"}, 
+        {"output": clean_response}
+    )
+    
+    return ConversationResponse(user_id=user_id, response=clean_response)
+
+## Code generation endpoint
+@app.post("/generate/code", response_model=ConversationResponse)
+async def generate_code(request: CodeGenerationRequest):
+    """Generate code based on the latest diagram or Jira stories in memory."""
+    user_id = request.user_id or str(uuid4())
+
+    # Get the code generation chain
+    code_chain = create_code_generation_chain(user_id)
+
+    # Initialize content to be passed to the LLM
+    content_for_llm = ""
+    source_type = "requirements" # Default source if nothing specific is found
+
+    # Try to find the latest diagram or Jira stories from memory
+    shared_memory = get_or_create_shared_memory(user_id)
+    memory_messages = shared_memory.chat_memory.messages
+
+    # Prioritize diagram, then Jira stories if not provided in the request
+    diagram_code_from_memory = None
+    jira_stories_from_memory = None
+
+    # Iterate through messages in reverse to find the most recent diagram or Jira stories
+    for msg in reversed(memory_messages):
+        if hasattr(msg, 'type') and msg.type == 'ai':
+            # Check for Mermaid.js diagrams first
+            if msg.content.strip().startswith(("graph", "sequenceDiagram", "classDiagram", "erDiagram", "stateDiagram", "gantt", "journey")):
+                diagram_code_from_memory = msg.content
+                break # Found a diagram, prioritize it
+
+            # If no diagram yet, check for Jira stories
+            if re.search(r"##\s*As a\s*", msg.content) or "story points" in msg.content.lower():
+                jira_stories_from_memory = msg.content
+                # Don't break yet, in case a diagram comes after
+                # (though in typical flow, diagram follows stories)
+
+    # Determine what content to use for code generation
+    if request.diagram_code: # User provided diagram in the request directly
+        content_for_llm = f"Diagram:\n{request.diagram_code}"
+        source_type = "diagram"
+    elif diagram_code_from_memory: # Found diagram in memory
+        content_for_llm = f"Diagram:\n{diagram_code_from_memory}"
+        source_type = "diagram"
+    elif request.jira_stories: # User provided Jira stories in the request directly
+        content_for_llm = f"Jira Stories:\n{request.jira_stories}"
+        source_type = "jira stories"
+    elif jira_stories_from_memory: # Found Jira stories in memory
+        content_for_llm = f"Jira Stories:\n{jira_stories_from_memory}"
+        source_type = "jira stories"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="No diagram or Jira stories provided or found in conversation history. Cannot generate code."
+        )
+
+    # Validate programming language
+    programming_language = request.programming_language
+    if not programming_language:
+        raise HTTPException(
+            status_code=400,
+            detail="Programming language is required for code generation."
+        )
+
+    # Add the interaction to shared memory before running the chain
+    shared_memory.save_context(
+        {"input": f"Generate {programming_language} code based on {source_type}"},
+        {"output": "Processing code generation request..."}
+    )
+
+    # FIXED: Combine programming_language into the input string
+    full_input = f"Programming Language: {programming_language}\n{content_for_llm}"
+
+    # FIXED: Run the chain with only the combined input
+    response = code_chain.run(input=full_input)
+
+    # Clean the output to ensure we get only the code
+    clean_response = response.strip()
+
+    # Remove markdown code block syntax if present (e.g., ```python)
+    # This loop is more robust for various language tags
+    lines = clean_response.split('\n')
+    if len(lines) > 1 and lines[0].strip().startswith("```") and lines[-1].strip() == "```":
+        clean_response = "\n".join(lines[1:-1]).strip()
+    elif clean_response.startswith("```"): # Handles single line code blocks or incomplete ones
+        clean_response = clean_response[3:].strip()
+    
+    # Remove common prefixes the model might add
+    code_prefixes_to_remove = [
+        f"Here's the {programming_language} code:",
+        f"Here is the {programming_language} code:",
+        "Generated Code:",
+        "Code:"
+    ]
+
+    for prefix in code_prefixes_to_remove:
+        if clean_response.startswith(prefix):
+            clean_response = clean_response[len(prefix):].strip()
+
+    # Save the generated code to memory
+    shared_memory.save_context(
+        {"input": f"Generated {programming_language} code"},
+        {"output": clean_response}
+    )
+
+    return ConversationResponse(user_id=user_id, response=clean_response)
+
+## Code modification endpoint
+@app.post("/modify_code", response_model=ConversationResponse)
+async def modify_code(request: ModifyCodeRequest):
+    """Modify existing code based on a modification prompt."""
+    user_id = request.user_id or str(uuid4())
+    
+    # Get the code modification chain
+    modification_chain = create_code_modification_chain(user_id)
+    
+    # If original_code isn't provided, try to find it in memory
+    original_code = request.original_code
+    if not original_code and user_id in shared_memories:
+        memory = shared_memories[user_id]
+        memory_messages = memory.chat_memory.messages
+        
+        for msg in reversed(memory_messages):
+            if hasattr(msg, 'type') and msg.type == 'ai':
+                # Heuristic to identify code from previous AI output
+                # Check for common programming language patterns
+                content = msg.content.strip()
+                # Look for code-like patterns (functions, classes, imports, etc.)
+                code_patterns = [
+                    r'def\s+\w+\s*\(',  # Python functions
+                    r'class\s+\w+',     # Class definitions
+                    r'import\s+\w+',    # Import statements
+                    r'from\s+\w+\s+import',  # From imports
+                    r'function\s+\w+\s*\(',  # JavaScript functions
+                    r'public\s+class\s+\w+',  # Java classes
+                    r'public\s+static\s+void\s+main',  # Java main
+                    r'#include\s*<',     # C/C++ includes
+                    r'int\s+main\s*\(',  # C/C++ main
+                    r'console\.log\s*\(',  # JavaScript console.log
+                    r'System\.out\.println',  # Java print
+                    r'print\s*\(',       # Python print
+                ]
+                
+                # Check if content matches any code pattern
+                if any(re.search(pattern, content, re.IGNORECASE | re.MULTILINE) for pattern in code_patterns):
+                    original_code = content
+                    break
+    
+    # If we still don't have original code, return an error
+    if not original_code:
+        raise HTTPException(
+            status_code=400, 
+            detail="No original code provided or found in conversation history. Please generate code first or provide the code."
+        )
+    
+    # Combine the inputs into a single input string for the LLM
+    combined_input = f"""Existing Code:
+{original_code}
+
+Modification Request:
+"{request.modification_prompt}"
+"""
+    
+    # Add the interaction to shared memory
+    shared_memory = get_or_create_shared_memory(user_id)
+    shared_memory.save_context(
+        {"input": f"Request to modify code: {request.modification_prompt}"}, 
+        {"output": "Processing code modification request..."}
+    )
+    
+    # Run the chain with the single combined input
+    response = modification_chain.run(input=combined_input)
+    
+    # Clean the output to ensure we get only the code
+    clean_response = response.strip()
+    
+    # Remove markdown code block syntax if present
+    lines = clean_response.split('\n')
+    if len(lines) > 1 and lines[0].strip().startswith("```") and lines[-1].strip() == "```":
+        clean_response = "\n".join(lines[1:-1]).strip()
+    elif clean_response.startswith("```"):
+        clean_response = clean_response[3:].strip()
+    if clean_response.endswith("```"):
+        clean_response = clean_response[:-3].strip()
+        
+    # Remove common prefixes the model might add
+    prefixes_to_remove = [
+        "Here's the modified code:",
+        "Here is the modified code:",
+        "Modified Code:",
+        "Updated Code:",
+        "Code:"
+    ]
+    
+    for prefix in prefixes_to_remove:
+        if clean_response.startswith(prefix):
+            clean_response = clean_response[len(prefix):].strip()
+            
+    # Save the modified code to memory
+    shared_memory.save_context(
+        {"input": "Please update the code"}, 
         {"output": clean_response}
     )
     
