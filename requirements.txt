@@ -1,5 +1,4 @@
 fastapi
-sqlalchemy
 python-dotenv
 boto3
 langchain
@@ -7,3 +6,8 @@ slowapi
 pydantic
 uvicorn
 dotenv
+pydantic
+langchain[all]
+google.generativeai
+langchain[google]
+
