@@ -42,3 +42,18 @@ class ModifyCodeRequest(BaseRequest):
     modification_prompt: str = Field(..., min_length=1)
     original_code: Optional[str] = None
     agent_type: Optional[str] = Field(default="code")
+    
+class JiraUploadRequest(BaseRequest):
+    """Request to upload Jira stories to Atlassian"""
+    email: str = Field(..., description="Jira account email")
+    api_token: str = Field(..., description="Jira API token")
+    domain: str = Field(..., description="Atlassian domain (e.g., mycompany.atlassian.net)")
+    project_key: str = Field(..., description="Jira project key (e.g., PROJ, DEV)")
+    stories_markdown: Optional[str] = Field(None, description="Markdown stories to upload (if not provided, will get from memory)")
+
+class JiraValidateRequest(BaseRequest):
+    """Request to validate Jira connection and project"""
+    email: str = Field(..., description="Jira account email")
+    api_token: str = Field(..., description="Jira API token") 
+    domain: str = Field(..., description="Atlassian domain")
+    project_key: Optional[str] = Field(None, description="Project key to validate (optional)")
