@@ -7,6 +7,11 @@ from src.api.routes.documentation import router as documentation_router
 from src.api.routes.diagram import router as diagram_router
 from src.api.routes.code import router as code_router
 from src.utils.logger import configure_logging
+import tracemalloc
+import logging
+
+logger = logging.getLogger("test")
+tracemalloc.start()
 
 configure_logging(
     log_level=settings.log_level,
@@ -36,6 +41,9 @@ app.include_router(code_router)
 
 @app.get("/", response_model=HealthResponse)
 def read_root():
+    logger.info("This is an info message")
+    logger.warning("This is a warning message") 
+    logger.error("This is an error message")
     return HealthResponse(
         status="ok", 
         message="API running correctly with LangChain integration",

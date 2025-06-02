@@ -97,5 +97,17 @@ class ChainFactory:
         
         memory = memory_service.get_or_create_memory(user_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+    
+    @staticmethod
+    def create_validation_requirements_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for validating requirements."""
+        llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
+        
+        prompt = PromptTemplate(
+            input_variables=["requirement"],
+            template=PROMPT_TEMPLATES["validation_requirements"]
+        )
+        
+        return LLMChain(llm=llm, prompt=prompt, verbose=False)
 
 chain_factory = ChainFactory()

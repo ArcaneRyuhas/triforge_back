@@ -1,12 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from src.models.requests import CodeGenerationRequest, ModifyCodeRequest
 from src.models.responses import ConversationResponse
-from src.services.chain_factory import chain_factory  # Direct import
-from src.services.memory_service import memory_service  # Direct import
+from src.services.chain_factory import chain_factory 
+from src.services.memory_service import memory_service 
 from src.utils.helpers import ResponseCleaner, ContentFinder
 from src.core.exceptions import AIServiceException, ValidationException
+from src.utils.logger import logging
 
 router = APIRouter(prefix="/code", tags=["code"])
+logger = logging.getLogger(__name__)
 
 @router.post("/generate", response_model=ConversationResponse)
 async def generate_code(request: CodeGenerationRequest):
@@ -65,6 +67,7 @@ async def generate_code(request: CodeGenerationRequest):
         
         return ConversationResponse(user_id=request.user_id, response=clean_response)
     except Exception as e:
+        logger.error(f"Error generating code: {str(e)}")
         raise AIServiceException(f"Error generating code: {str(e)}")
 
 @router.post("/modify", response_model=ConversationResponse)
@@ -109,4 +112,5 @@ Modification Request:
         
         return ConversationResponse(user_id=request.user_id, response=clean_response)
     except Exception as e:
+        logger.error(f"Error modifying code: {str(e)}")
         raise AIServiceException(f"Error modifying code: {str(e)}")

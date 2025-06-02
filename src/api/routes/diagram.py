@@ -5,8 +5,10 @@ from src.services.chain_factory import chain_factory  # Direct import
 from src.services.memory_service import memory_service  # Direct import
 from src.utils.helpers import ResponseCleaner, ContentFinder
 from src.core.exceptions import AIServiceException, ValidationException
+from src.utils.logger import logging
 
 router = APIRouter(prefix="/diagram", tags=["diagram"])
+logger = logging.getLogger(__name__)
 
 @router.post("/generate", response_model=ConversationResponse)
 async def generate_diagram(request: DiagramGenerationRequest):
@@ -72,6 +74,7 @@ Diagram Type: {normalized_diagram_type}
         
         return ConversationResponse(user_id=request.user_id, response=clean_response)
     except Exception as e:
+        logger.error(f"Error generating diagram: {str(e)}")
         raise AIServiceException(f"Error generating diagram: {str(e)}")
 
 @router.post("/modify", response_model=ConversationResponse)
@@ -116,4 +119,5 @@ Modification Request:
         
         return ConversationResponse(user_id=request.user_id, response=clean_response)
     except Exception as e:
+        logger.error(f"Error modifying diagram: {str(e)}")
         raise AIServiceException(f"Error modifying diagram: {str(e)}")

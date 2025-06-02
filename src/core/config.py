@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # AI Configuration
     genai_api_key: str
     default_model: str = "gemini-2.0-flash"
+
     
     # CORS Settings
     allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]

@@ -1,22 +1,22 @@
 PROMPT_TEMPLATES = {
     "jira_generation": """Generate Jira user stories for the following software requirement:
-    
-    "{requirement}"
-    
-    For each user story:
-    1. Create a clear title in the format "As a [user type], I want to [action] so that [benefit]"
-    2. Add a detailed description
-    3. Add acceptance criteria (at least 3 per story)
-    4. Assign story points (1, 2, 3, 5, 8, 13)
-    5. Set priority (Highest, High, Medium, Low, Lowest)
-    
-    Create at least 5 user stories that cover the main functionality.
-    Format the output in Markdown with each story as a separate section.
-    
-    Chat History:
-    {chat_history}
-    """,
-    
+
+"{requirement}"
+
+For each user story:
+1. Create a clear title in the format "As a [user type], I want to [action] so that [benefit]"
+2. Add a detailed description
+3. Add acceptance criteria (at least 3 per story)
+4. Assign story points (1, 2, 3, 5, 8, 13)
+5. Set priority (Highest, High, Medium, Low, Lowest)
+
+Create at least 5 user stories that cover the main functionality.
+Format the output in Markdown with each story as a separate section.
+
+Chat History:
+{chat_history}
+""",
+
     "jira_modification": """You are reviewing and modifying a set of Jira user stories based on additional requirements or feedback.
 
 {input}
@@ -34,7 +34,7 @@ Maintain the same format as the original stories and highlight changes with [MOD
 Chat History:
 {chat_history}
 """,
-    
+
     "diagram_generation": """You are a software architect who creates diagrams based on Jira user stories.
 
 {input}
@@ -45,7 +45,7 @@ Return ONLY the Mermaid.js code without any explanations or markdown blocks.
 Chat History:
 {chat_history}
 """,
-    
+
     "diagram_modification": """You are a software architect who modifies existing Mermaid.js diagrams.
 
 {input}
@@ -56,7 +56,7 @@ Return the complete, valid Mermaid.js code without explanations or markdown bloc
 Chat History:
 {chat_history}
 """,
-    
+
     "code_generation": """You are a senior software engineer. Generate clean, functional code for the system described.
 
 {input}
@@ -66,7 +66,7 @@ Return ONLY the code without explanations or markdown blocks.
 Chat History:
 {chat_history}
 """,
-    
+
     "code_modification": """You are a senior software engineer who modifies existing code.
 
 {input}
@@ -77,12 +77,26 @@ Return the complete, functional code without explanations or markdown blocks.
 Chat History:
 {chat_history}
 """,
-    
+
     "conversation": """You are a helpful assistant. Answer the user's question based on the conversation history.
 
 Chat History:
 {chat_history}
 
 User: {input}
-Assistant: """
+Assistant: 
+""",
+
+    "validation_requirements": """I will give you requirements, i want you to grade the requirements and give me a true if requirements
+    are graded 7 or above, otherwise false.
+
+The answer should be only: false or true
+
+Don't give me any more details.
+
+Requirements:
+
+{requirement}
+
+"""
 }

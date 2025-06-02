@@ -7,6 +7,7 @@ class ConversationResponse(BaseModel):
 class JiraStoriesResponse(BaseModel):
     user_id: str
     jira_stories: str
+    is_valid: bool
 
 class HealthResponse(BaseModel):
     status: str
