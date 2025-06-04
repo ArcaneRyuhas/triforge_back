@@ -110,4 +110,35 @@ class ChainFactory:
         
         return LLMChain(llm=llm, prompt=prompt, verbose=False)
 
+    @staticmethod
+    def create_technology_detection_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for detecting technologies from user prompts."""
+        llm = ai_service.create_llm(
+            temperature=0.0, 
+            max_tokens=300
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["prompt", "context"],
+            template=PROMPT_TEMPLATES["technology_detection"]
+        )
+        
+        return LLMChain(llm=llm, prompt=prompt, verbose=False)
+
+    @staticmethod  
+    def create_project_code_generation_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for generating complete project structures."""
+        llm = ai_service.create_llm(
+            temperature=0.0, 
+            max_tokens=10000
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=PROMPT_TEMPLATES["project_code_generation"]
+        )
+        
+        memory = memory_service.get_or_create_memory(user_id)
+        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
 chain_factory = ChainFactory()

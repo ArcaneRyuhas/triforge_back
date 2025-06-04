@@ -57,3 +57,16 @@ class JiraValidateRequest(BaseRequest):
     api_token: str = Field(..., description="Jira API token") 
     domain: str = Field(..., description="Atlassian domain")
     project_key: Optional[str] = Field(None, description="Project key to validate (optional)")
+    
+class ProjectCodeGenerationRequest(BaseRequest):
+    """Request to generate a complete project with multiple technologies"""
+    prompt: str = Field(..., min_length=1, description="User prompt describing the technologies and requirements")
+    agent_type: Optional[str] = Field(default="code")
+
+class ProjectStructureRequest(BaseRequest):
+    """Request to get the structure of a generated project"""
+    project_id: str = Field(..., description="ID of the generated project")
+
+class ProjectDownloadRequest(BaseRequest):
+    """Request to download a project as ZIP"""
+    project_id: str = Field(..., description="ID of the generated project")
