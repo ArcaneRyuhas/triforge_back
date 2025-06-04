@@ -98,5 +98,78 @@ Requirements:
 
 {requirement}
 
+""",
+
+# Add these to src/utils/prompts.py in the PROMPT_TEMPLATES dictionary
+
+    "technology_detection": """You are a senior software architect. Analyze the user prompt and identify the technologies they want to use.
+
+User Prompt: "{prompt}"
+
+Available Context from Memory:
+{context}
+
+Extract and return a JSON object with the following structure:
+{{
+  "technologies": [
+    {{
+      "name": "technology name",
+      "category": "frontend|backend|database|mobile|devops|testing|other",
+      "version": "version if specified or null"
+    }}
+  ]
+}}
+
+Focus only on explicitly mentioned technologies. If the user mentions general terms, infer the most common/recommended technology for that category.
+
+Examples:
+- "Next.js" -> frontend
+- "Node.js", "Express", "Nest.js" -> backend  
+- "MongoDB", "PostgreSQL", "MySQL" -> database
+- "React Native", "Flutter" -> mobile
+- "Docker", "Kubernetes" -> devops
+
+Return only valid JSON, no explanations.""",
+
+    "project_code_generation": """You are a senior full-stack developer. Generate a complete, production-ready project structure with all necessary files.
+
+{input}
+
+Generate a complete project with:
+1. Proper folder structure following best practices for each technology
+2. Configuration files (package.json, .env.example, etc.)
+3. Main application files with basic functionality
+4. Database models/schemas if applicable
+5. API routes/endpoints if backend is included
+6. Frontend components if frontend is included
+7. Security implementations (authentication, validation, etc.)
+8. Error handling and logging
+9. Basic tests
+10. Documentation files
+
+Return a JSON object with this structure:
+{{
+  "files": [
+    {{
+      "path": "relative/file/path.ext",
+      "content": "complete file content",
+      "language": "javascript|typescript|python|html|css|json|markdown|yaml|etc"
+    }}
+  ]
+}}
+
+Important guidelines:
+- Use modern best practices and patterns
+- Include proper error handling and security measures
+- Create a scalable, maintainable structure
+- Add comments explaining key functionality
+- Include environment configuration
+- Follow naming conventions for each technology
+- Create at least 15-25 files for a complete project
+- Include package.json/requirements.txt with all dependencies
+
+Return only valid JSON, no explanations.
+
+For the moment try to generate a project with only commentary files, no actual code. Try to make it as small as possible, but with a complete structure.
 """
 }

@@ -1,5 +1,5 @@
 import re
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 class ResponseCleaner:
     @staticmethod
@@ -100,3 +100,109 @@ class ContentFinder:
                 if any(re.search(pattern, content, re.IGNORECASE | re.MULTILINE) for pattern in code_patterns):
                     return content
         return None
+
+class JSONResponseCleaner:
+    """Helper class to clean and parse JSON responses from LLMs"""
+    
+    @staticmethod
+    def clean_json_response(response: str) -> str:
+        """Clean JSON response by removing markdown blocks and common prefixes"""
+        clean_response = response.strip()
+        
+        # Remove markdown code block syntax if present
+        if clean_response.startswith("```json"):
+            clean_response = clean_response[len("```json"):].strip()
+        elif clean_response.startswith("```"):
+            clean_response = clean_response[3:].strip()
+        
+        if clean_response.endswith("```"):
+            clean_response = clean_response[:-3].strip()
+        
+        # Remove common prefixes that LLMs might add
+        prefixes_to_remove = [
+            "Here's the JSON:",
+            "Here is the JSON:",
+            "JSON response:",
+            "Response:",
+            "Output:"
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if clean_response.startswith(prefix):
+                clean_response = clean_response[len(prefix):].strip()
+        
+        return clean_response
+    
+    @staticmethod
+    def safe_json_parse(response: str, fallback_data: dict = None):
+        """Safely parse JSON with fallback"""
+        try:
+            cleaned = JSONResponseCleaner.clean_json_response(response)
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            if fallback_data:
+                return fallback_data
+            raise
+
+class ContextGatherer:
+    """Helper class to gather and format context from memory for AI chains"""
+    
+    @staticmethod
+    def gather_project_context(memory_messages) -> Dict[str, str]:
+        """Gather all relevant context for project generation"""
+        context = {
+            "requirements": None,
+            "diagrams": None,
+            "code": None,
+            "conversations": []
+        }
+        
+        # Find Jira stories/requirements
+        context["requirements"] = ContentFinder.find_jira_stories_in_memory(memory_messages)
+        
+        # Find diagrams
+        context["diagrams"] = ContentFinder.find_diagram_in_memory(memory_messages)
+        
+        # Find existing code
+        context["code"] = ContentFinder.find_code_in_memory(memory_messages)
+        
+        # Gather recent conversations for additional context
+        conversation_count = 0
+        for msg in reversed(memory_messages):
+            if conversation_count >= 5:  # Limit to last 5 conversations
+                break
+            
+            if hasattr(msg, 'type') and hasattr(msg, 'content'):
+                context["conversations"].append({
+                    "type": msg.type,
+                    "content": msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
+                })
+                conversation_count += 1
+        
+        return context
+    
+    @staticmethod
+    def format_context_for_llm(context: Dict[str, str]) -> str:
+        """Format context dictionary into a readable string for LLM"""
+        formatted_parts = []
+        
+        if context.get("requirements"):
+            formatted_parts.append(f"=== REQUIREMENTS/USER STORIES ===\n{context['requirements']}")
+        
+        if context.get("diagrams"):
+            formatted_parts.append(f"=== SYSTEM DIAGRAM ===\n{context['diagrams']}")
+        
+        if context.get("code"):
+            formatted_parts.append(f"=== EXISTING CODE ===\n{context['code']}")
+        
+        if context.get("conversations"):
+            conv_text = "\n".join([
+                f"[{conv['type'].upper()}]: {conv['content']}" 
+                for conv in context["conversations"]
+            ])
+            formatted_parts.append(f"=== RECENT CONVERSATION ===\n{conv_text}")
+        
+        if not formatted_parts:
+            return "No previous context available."
+        
+        return "\n\n".join(formatted_parts)
