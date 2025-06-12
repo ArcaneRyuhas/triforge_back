@@ -171,5 +171,51 @@ Important guidelines:
 Return only valid JSON, no explanations.
 
 For the moment try to generate a project with only commentary files, no actual code. Try to make it as small as possible, but with a complete structure.
+""",
+
+# Add these to src/utils/prompts.py in the PROMPT_TEMPLATES dictionary
+
+"requirements_refinement": """You are a senior business analyst and requirements engineer. Transform the following poorly written document into clear, well-structured software requirements.
+
+{input}
+
+Please transform this document into professional requirements by:
+1. Identifying and extracting all functional requirements
+2. Clarifying ambiguous statements
+3. Filling in missing details based on common practices
+4. Organizing requirements logically
+5. Adding acceptance criteria for each requirement
+6. Categorizing requirements (must-have, nice-to-have)
+7. Identifying any non-functional requirements (performance, security, etc.)
+
+Structure the output as follows:
+- Clear requirement titles
+- Detailed descriptions
+- Acceptance criteria
+- Priority levels
+- Any technical constraints or dependencies
+
+Make reasonable assumptions where the original document is unclear, and note these assumptions.
+
+Chat History:
+{chat_history}
+""",
+
+"requirements_analysis": """You are a requirements analyst. Analyze the following document and extract key requirements without full refinement.
+
+{input}
+
+Analyze and provide:
+1. Main features/capabilities mentioned
+2. User types or roles identified
+3. Key functional areas
+4. Any constraints or limitations mentioned
+5. Potential gaps or missing information
+6. Recommended next steps for clarification
+
+Provide a concise analysis that helps understand what the document is trying to convey.
+
+Chat History:
+{chat_history}
 """
 }

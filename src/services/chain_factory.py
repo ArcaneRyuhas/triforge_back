@@ -140,5 +140,37 @@ class ChainFactory:
         
         memory = memory_service.get_or_create_memory(user_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+    
+    @staticmethod
+    def create_requirements_refinement_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for refining poorly written requirements."""
+        llm = ai_service.create_llm(
+            temperature=0.3,  # Low temperature for consistency
+            max_tokens=800    # More tokens for detailed requirements
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=PROMPT_TEMPLATES["requirements_refinement"]
+        )
+        
+        memory = memory_service.get_or_create_memory(user_id)
+        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+    @staticmethod
+    def create_requirements_analysis_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for analyzing requirements documents."""
+        llm = ai_service.create_llm(
+            temperature=0.2,
+            max_tokens=400
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=PROMPT_TEMPLATES["requirements_analysis"]
+        )
+        
+        memory = memory_service.get_or_create_memory(user_id)
+        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
 chain_factory = ChainFactory()
