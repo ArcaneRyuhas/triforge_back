@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from src.models.requests import JiraUploadRequest, JiraValidateRequest
 from src.models.responses import JiraUploadResponse, JiraValidationResponse
 from src.services.jira_service import jira_service, JiraCredentials
@@ -6,9 +6,17 @@ from src.services.memory_service import memory_service
 from src.utils.helpers import ContentFinder
 from src.core.exceptions import AIServiceException, ValidationException
 from src.utils.logger import logging
+import secrets, base64, hashlib, httpx
+import os
+from urllib.parse import urlencode
 
 router = APIRouter(prefix="/jira", tags=["jira"])
 logger = logging.getLogger(__name__)
+SESSION = {}
+
+CLIENT_ID = os.getenv("JIRA_CLIENT_ID")
+CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("JIRA_REDIRECT_URI", "http://localhost:3000/auth/jira/callback")
 
 @router.post("/validate", response_model=JiraValidationResponse)
 async def validate_jira_connection(request: JiraValidateRequest):
@@ -150,3 +158,129 @@ async def get_stories_from_memory(user_id: str):
     except Exception as e:
         logger.error(f"Error retrieving stories from memory: {str(e)}")
         raise AIServiceException(f"Error retrieving stories from memory: {str(e)}")
+    
+@router.get("/oauth2/start")
+async def oauth_start():
+    """Iniciar el flujo OAuth de Jira"""
+    try:
+        if not CLIENT_ID:
+            logger.error("JIRA_CLIENT_ID not configured")
+            raise HTTPException(status_code=500, detail="Jira OAuth not configured")
+        
+        state = secrets.token_urlsafe(16)
+        code_verifier = secrets.token_urlsafe(64)
+        code_challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode()).digest()
+        ).rstrip(b'=').decode()
+        
+        SESSION[state] = {"code_verifier": code_verifier}
+        
+        params = {
+            "audience": "api.atlassian.com",
+            "client_id": CLIENT_ID,
+            "scope": "read:jira-work read:jira-user offline_access",
+            "redirect_uri": REDIRECT_URI,
+            "state": state,
+            "response_type": "code",
+            "prompt": "consent",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256"
+        }
+        
+        url = f"https://auth.atlassian.com/authorize?{urlencode(params)}"
+        logger.info(f"Generated OAuth URL for state {state}")
+        
+        return {"authUrl": url}
+        
+    except Exception as e:
+        logger.error(f"Error starting OAuth flow: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error starting OAuth flow: {str(e)}")
+
+@router.get("/oauth2/callback")
+async def oauth_callback(code: str, state: str):
+    """Manejar el callback de OAuth"""
+    try:
+        if state not in SESSION:
+            logger.error(f"Invalid state received: {state}")
+            raise HTTPException(status_code=400, detail="Invalid state")
+        
+        code_verifier = SESSION.pop(state)["code_verifier"]
+        
+        if not CLIENT_ID or not CLIENT_SECRET:
+            logger.error("OAuth credentials not configured")
+            raise HTTPException(status_code=500, detail="OAuth credentials not configured")
+        
+        async with httpx.AsyncClient() as client:
+            token_resp = await client.post("https://auth.atlassian.com/oauth/token", json={
+                "grant_type": "authorization_code",
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+                "code_verifier": code_verifier
+            })
+            
+            if not token_resp.is_success:
+                logger.error(f"Token exchange failed: {token_resp.status_code} - {token_resp.text}")
+                raise HTTPException(status_code=400, detail="Token exchange failed")
+            
+            tokens = token_resp.json()
+            
+            accessible_resources_resp = await client.get(
+                "https://api.atlassian.com/oauth/token/accessible-resources",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            )
+            
+            if accessible_resources_resp.is_success:
+                resources = accessible_resources_resp.json()
+                if resources:
+                    tokens["cloud_id"] = resources[0]["id"]
+                    tokens["site_url"] = resources[0]["url"]
+            
+            logger.info(f"OAuth flow completed successfully for state {state}")
+            
+            # Aquí se deberían guardar los tokens en una base de datos
+            # vinculados al usuario actual
+            
+            return {"success": True, "tokens": tokens}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in OAuth callback: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OAuth callback error: {str(e)}")
+
+@router.post("/oauth2/refresh")
+async def refresh_token(refresh_data: dict):
+    """Refrescar el token de acceso"""
+    try:
+        refresh_token = refresh_data.get("refresh_token")
+        if not refresh_token:
+            raise HTTPException(status_code=400, detail="Refresh token required")
+        
+        if not CLIENT_ID or not CLIENT_SECRET:
+            raise HTTPException(status_code=500, detail="OAuth credentials not configured")
+        
+        async with httpx.AsyncClient() as client:
+            token_resp = await client.post("https://auth.atlassian.com/oauth/token", json={
+                "grant_type": "refresh_token",
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "refresh_token": refresh_token
+            })
+            
+            if not token_resp.is_success:
+                logger.error(f"Token refresh failed: {token_resp.status_code} - {token_resp.text}")
+                raise HTTPException(status_code=400, detail="Token refresh failed")
+            
+            tokens = token_resp.json()
+            logger.info("Token refreshed successfully")
+            
+            return tokens
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing token: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Token refresh error: {str(e)}")
+    

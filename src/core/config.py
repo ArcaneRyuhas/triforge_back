@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     
     # CORS Settings
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8000"]
     
     # Chain Configuration
     memory_window_size: int = 4
