@@ -178,7 +178,7 @@ async def oauth_start():
         params = {
             "audience": "api.atlassian.com",
             "client_id": CLIENT_ID,
-            "scope": "read:jira-work read:jira-user offline_access",
+            "scope": "read:jira-work write:jira-work offline_access",
             "redirect_uri": REDIRECT_URI,
             "state": state,
             "response_type": "code",
@@ -249,6 +249,18 @@ async def oauth_callback(code: str, state: str):
     except Exception as e:
         logger.error(f"Error in OAuth callback: {str(e)}")
         raise HTTPException(status_code=500, detail=f"OAuth callback error: {str(e)}")
+
+@router.get("/debug/oauth-config")
+async def debug_oauth_config():
+    """Debug endpoint to check OAuth configuration"""
+    return {
+        "client_id_exists": bool(CLIENT_ID),
+        "client_id_length": len(CLIENT_ID) if CLIENT_ID else 0,
+        "client_secret_exists": bool(CLIENT_SECRET),
+        "client_secret_length": len(CLIENT_SECRET) if CLIENT_SECRET else 0,
+        "redirect_uri": REDIRECT_URI,
+        "client_id_prefix": CLIENT_ID[:10] + "..." if CLIENT_ID and len(CLIENT_ID) > 10 else CLIENT_ID
+    }
 
 @router.post("/oauth2/refresh")
 async def refresh_token(refresh_data: dict):

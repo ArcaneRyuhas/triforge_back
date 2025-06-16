@@ -8,6 +8,12 @@ class Settings(BaseSettings):
     app_name: str = "AI Documentation API"
     version: str = "1.0.0"
     debug: bool = False
+
+    jira_client_id: str
+    jira_client_secret: str
+    jira_redirect_uri: str
+    class Config:
+        env_file = ".env"
     
     # AI Configuration
     genai_api_key: str
