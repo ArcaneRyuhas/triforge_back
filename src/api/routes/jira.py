@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from src.models.requests import JiraUploadRequest, JiraValidateRequest
 from src.models.responses import JiraUploadResponse, JiraValidationResponse
 from src.services.jira_service import jira_service, JiraCredentials
@@ -8,11 +9,12 @@ from src.core.exceptions import AIServiceException, ValidationException
 from src.utils.logger import logging
 import secrets, base64, hashlib, httpx
 import os
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
+from typing import Dict, Any
 
 router = APIRouter(prefix="/jira", tags=["jira"])
 logger = logging.getLogger(__name__)
-SESSION = {}
+SESSION: Dict[str, Dict[str, Any]] = {}
 
 CLIENT_ID = os.getenv("JIRA_CLIENT_ID")
 CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
@@ -163,8 +165,14 @@ async def get_stories_from_memory(user_id: str):
 async def oauth_start():
     """Iniciar el flujo OAuth de Jira"""
     try:
+        logger.info("Starting Jira OAuth flow")
+
         if not CLIENT_ID:
             logger.error("JIRA_CLIENT_ID not configured")
+            raise HTTPException(status_code=500, detail="Jira OAuth not configured")
+        
+        if not CLIENT_SECRET:
+            logger.error("JIRA_CLIENT_SECRET not configured")
             raise HTTPException(status_code=500, detail="Jira OAuth not configured")
         
         state = secrets.token_urlsafe(16)
@@ -187,11 +195,13 @@ async def oauth_start():
             "code_challenge_method": "S256"
         }
         
-        url = f"https://auth.atlassian.com/authorize?{urlencode(params)}"
-        logger.info(f"Generated OAuth URL for state {state}")
+        url = f"https://auth.atlassian.com/authorize?{urlencode(params, quote_via=quote_plus)}"
+        logger.info(f"Generated OAuth URL for state {state}: {url}")
         
-        return {"authUrl": url}
-        
+        return {"authUrl": url, "state": state}
+
+    except HTTPException:
+        raise 
     except Exception as e:
         logger.error(f"Error starting OAuth flow: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error starting OAuth flow: {str(e)}")
@@ -200,9 +210,12 @@ async def oauth_start():
 async def oauth_callback(code: str, state: str):
     """Manejar el callback de OAuth"""
     try:
+        logger.info(f"HAndling OAuth callback - state: {state}, code provided: {bool(code)}")
         if state not in SESSION:
             logger.error(f"Invalid state received: {state}")
-            raise HTTPException(status_code=400, detail="Invalid state")
+            available_states = list(SESSION.keys())
+            logger.error(f"Available states: {available_states}")
+            raise HTTPException(status_code=400, detail=f"Invalid state. Available: {len(available_states)}")
         
         code_verifier = SESSION.pop(state)["code_verifier"]
         
@@ -210,22 +223,36 @@ async def oauth_callback(code: str, state: str):
             logger.error("OAuth credentials not configured")
             raise HTTPException(status_code=500, detail="OAuth credentials not configured")
         
-        async with httpx.AsyncClient() as client:
-            token_resp = await client.post("https://auth.atlassian.com/oauth/token", json={
+        logger.info("Exchanging code for tokens...")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            token_data = {
                 "grant_type": "authorization_code",
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
                 "code": code,
                 "redirect_uri": REDIRECT_URI,
                 "code_verifier": code_verifier
-            })
+            }
+
+            logger.info(f"Token exchange request data: {dict(token_data, client_secret= '***', code= '***')}")
+
+            token_resp = await client.post(
+                "https://auth.atlassian.com/oauth/token", 
+                data=token_data,
+                headers={"Content-Type": "application/json"}
+            )
+            logger.info(f"Token exchange response: {token_resp.status_code}")
             
             if not token_resp.is_success:
-                logger.error(f"Token exchange failed: {token_resp.status_code} - {token_resp.text}")
-                raise HTTPException(status_code=400, detail="Token exchange failed")
+                error_text = token_resp.text
+                logger.error(f"Token exchange failed: {token_resp.status_code} - {error_text}")
+                raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_resp.status_code}-{error_text}")
             
             tokens = token_resp.json()
-            
+            logger.info(f"Tokens received: {list(tokens.keys())}")
+
+            logger.info("Fetching accessible resources...")    
             accessible_resources_resp = await client.get(
                 "https://api.atlassian.com/oauth/token/accessible-resources",
                 headers={"Authorization": f"Bearer {tokens['access_token']}"}
@@ -233,10 +260,16 @@ async def oauth_callback(code: str, state: str):
             
             if accessible_resources_resp.is_success:
                 resources = accessible_resources_resp.json()
+                logger.info(f"Found {len(resources)} accessible resources")
                 if resources:
                     tokens["cloud_id"] = resources[0]["id"]
                     tokens["site_url"] = resources[0]["url"]
-            
+                    tokens["site_name"] = resources[0].get("name", "Unknown")
+                    logger.info(f"Using cloud_id: {tokens['cloud_id']} and site_url: {tokens['site_url']}")
+                else:
+                    logger.warning(f"Failed to fetch accessible resources: {accessible_resources_resp.status_code} - {accessible_resources_resp.text}")
+            else: 
+                logger.warning(f"Failed to fetch accessible resources: {accessible_resources_resp.status_code} - {accessible_resources_resp.text}")
             logger.info(f"OAuth flow completed successfully for state {state}")
             
             # Aquí se deberían guardar los tokens en una base de datos
@@ -253,14 +286,22 @@ async def oauth_callback(code: str, state: str):
 @router.get("/debug/oauth-config")
 async def debug_oauth_config():
     """Debug endpoint to check OAuth configuration"""
-    return {
+    config_info = {
         "client_id_exists": bool(CLIENT_ID),
         "client_id_length": len(CLIENT_ID) if CLIENT_ID else 0,
         "client_secret_exists": bool(CLIENT_SECRET),
         "client_secret_length": len(CLIENT_SECRET) if CLIENT_SECRET else 0,
         "redirect_uri": REDIRECT_URI,
-        "client_id_prefix": CLIENT_ID[:10] + "..." if CLIENT_ID and len(CLIENT_ID) > 10 else CLIENT_ID
+        "session_states": len(SESSION),
+        "session_keys": list(SESSION.keys()) if len(SESSION) < 10 else f"{len(SESSION)} states"
     }
+    if CLIENT_ID and len(CLIENT_ID) > 10:
+        config_info["client_id_prefix"] = CLIENT_ID[:10] + "..."
+    else:
+        config_info["client_id_prefix"] = CLIENT_ID
+    
+    logger.info(f"OAuth configuration: {config_info}")
+    return config_info
 
 @router.post("/oauth2/refresh")
 async def refresh_token(refresh_data: dict):
@@ -273,17 +314,25 @@ async def refresh_token(refresh_data: dict):
         if not CLIENT_ID or not CLIENT_SECRET:
             raise HTTPException(status_code=500, detail="OAuth credentials not configured")
         
-        async with httpx.AsyncClient() as client:
-            token_resp = await client.post("https://auth.atlassian.com/oauth/token", json={
+        logger.info("Refreshing Jira OAuth token...")
+
+        async with httpx.AsyncClient(timeout= 30.0) as client:
+            token_data = {
                 "grant_type": "refresh_token",
                 "client_id": CLIENT_ID,
                 "client_secret": CLIENT_SECRET,
                 "refresh_token": refresh_token
-            })
+            }
+            token_resp = await client.post(
+                "https://auth.atlassian.com/oauth/token", 
+                data= token_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
             
             if not token_resp.is_success:
+                error_text = token_resp.text
                 logger.error(f"Token refresh failed: {token_resp.status_code} - {token_resp.text}")
-                raise HTTPException(status_code=400, detail="Token refresh failed")
+                raise HTTPException(status_code=400, detail=f"Token refresh failed{token_resp.status_code}-{error_text}")
             
             tokens = token_resp.json()
             logger.info("Token refreshed successfully")
@@ -295,4 +344,17 @@ async def refresh_token(refresh_data: dict):
     except Exception as e:
         logger.error(f"Error refreshing token: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Token refresh error: {str(e)}")
+    
+
+@router.delete("/oauth2/disconnect")
+async def disconnect_oauth():
+    """Disconnect OAuth connection"""
+    try:
+        # Clear any active sessions
+        SESSION.clear()
+        logger.info("OAuth connection disconnected")
+        return {"success": True, "message": "Disconnected successfully"}
+    except Exception as e:
+        logger.error(f"Error disconnecting: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Disconnect error: {str(e)}")
     
