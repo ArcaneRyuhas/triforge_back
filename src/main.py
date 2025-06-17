@@ -11,6 +11,7 @@ from src.api.routes.code import router as code_router
 from src.api.routes.jira import router as jira_router  
 from src.api.routes.requirements import router as requirements_router
 from src.api.routes.auth import router as auth_router  
+from src.api.routes.database_routes import router as db_router
 from src.utils.logger import configure_logging
 import tracemalloc
 import logging
@@ -56,6 +57,7 @@ app.include_router(diagram_router)
 app.include_router(code_router)
 app.include_router(jira_router)
 app.include_router(requirements_router)
+app.include_router(db_router)
 
 @app.get("/", response_model=HealthResponse)
 def read_root():

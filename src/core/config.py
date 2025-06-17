@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     cognito_app_client_id: str = ""
     cognito_domain: str = ""  # Optional: for hosted UI
     cognito_jwks_url: str = ""  # Will be constructed from region and pool ID
+
+    # SQL Alchemy
+    database_url: str # Posgres url
     
     class Config:
         env_file = ".env"
