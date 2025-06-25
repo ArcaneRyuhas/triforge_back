@@ -8,13 +8,19 @@ class Settings(BaseSettings):
     app_name: str = "AI Documentation API"
     version: str = "1.0.0"
     debug: bool = False
+
+    jira_client_id: str
+    jira_client_secret: str
+    jira_redirect_uri: str
+    class Config:
+        env_file = ".env"
     
     # AI Configuration
     genai_api_key: str
     default_model: str = "gemini-2.0-flash"
     
     # CORS Settings
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8000"]
     
     # Chain Configuration
     memory_window_size: int = 4
