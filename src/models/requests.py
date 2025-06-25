@@ -70,3 +70,16 @@ class ProjectStructureRequest(BaseRequest):
 class ProjectDownloadRequest(BaseRequest):
     """Request to download a project as ZIP"""
     project_id: str = Field(..., description="ID of the generated project")
+    
+class RequirementsRefinementRequest(BaseRequest):
+    """Request to refine a poorly written document into structured requirements"""
+    raw_document: str = Field(..., min_length=10, description="The raw, poorly written document to refine")
+    output_format: Optional[str] = Field(
+        default="structured_requirements", 
+        description="Output format: structured_requirements, user_stories, technical_spec"
+    )
+    include_acceptance_criteria: Optional[bool] = Field(default=True, description="Include acceptance criteria in output")
+    target_audience: Optional[str] = Field(
+        default="development_team",
+        description="Target audience: development_team, business_stakeholders, technical_architects"
+    )

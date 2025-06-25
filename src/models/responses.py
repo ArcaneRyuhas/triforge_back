@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Dict, Optional, Any  
+from typing import List, Dict, Optional, Any
 
 class ConversationResponse(BaseModel):
     user_id: str
@@ -32,8 +32,6 @@ class JiraUploadResponse(BaseModel):
     total_stories: int
     successful_uploads: int
     
-    # Add these new models to src/models/responses.py
-
 class ProjectFile(BaseModel):
     """Represents a file in a generated project"""
     path: str
@@ -64,3 +62,9 @@ class DownloadResponse(BaseModel):
     download_url: str
     filename: str
     size_bytes: int
+    
+class RequirementsRefinementResponse(BaseModel):
+    """Response for requirements refinement"""
+    user_id: str
+    refined_requirements: str
+

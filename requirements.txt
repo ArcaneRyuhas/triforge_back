@@ -9,3 +9,8 @@ langchain-google-genai
 python-multipart
 httpx
 requests
+PyJWT
+cryptography
+requests
+boto3
+botocore
