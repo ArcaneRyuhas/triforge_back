@@ -172,5 +172,21 @@ class ChainFactory:
         
         memory = memory_service.get_or_create_memory(user_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+    
+    @staticmethod
+    def create_intent_detection_chain(user_id: str) -> LLMChain:
+        """Create a specialized chain for detecting user intent."""
+        llm = ai_service.create_llm(
+            temperature=0.0,  # Deterministic for consistent intent detection
+            max_tokens=150   # Small response for just intent
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=PROMPT_TEMPLATES["intent_detection"]
+        )
+        
+        memory = memory_service.get_or_create_memory(user_id)
+        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
 chain_factory = ChainFactory()

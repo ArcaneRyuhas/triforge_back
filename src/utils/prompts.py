@@ -217,5 +217,47 @@ Provide a concise analysis that helps understand what the document is trying to 
 
 Chat History:
 {chat_history}
-"""
+""",
+
+"intent_detection": """You are an AI assistant specialized in understanding user intent for a software development system.
+
+Analyze the user's message and conversation context to determine their intent.
+
+{input}
+
+Based on the message and context, determine the user's intent. Consider:
+1. Keywords and phrases in the message
+2. Previous conversation context (what artifacts exist)
+3. Whether this is a modification request or new creation
+
+Possible intents:
+- "conversation": General questions, clarifications, or chat
+- "documentation": Creating Jira stories, requirements, or user stories
+- "diagram": Creating visual diagrams (flowchart, sequence, class, etc.)
+- "code": Generating project code or implementation
+- "modify_documentation": Updating existing Jira stories
+- "modify_diagram": Updating existing diagrams
+- "modify_code": Updating existing code
+
+Return ONLY a valid JSON response in this exact format:
+{{
+    "intent": "one of the intents listed above",
+    "confidence": 0.0 to 1.0,
+    "reasoning": "brief explanation of why this intent was chosen",
+    "extracted_params": {{
+        // Optional parameters based on intent
+        // For diagram: "diagram_type": "flowchart|sequence|class|er|state|gantt|journey"
+        // For code: "technologies": ["technology names mentioned"]
+        // For modifications: "target": "what specifically to modify"
+    }}
+}}
+
+Examples:
+- "Create a flowchart for the login process" -> intent: "diagram", diagram_type: "flowchart"
+- "Add authentication to the stories" -> intent: "modify_documentation"
+- "Build a Next.js app with MongoDB" -> intent: "code", technologies: ["Next.js", "MongoDB"]
+- "How does the system work?" -> intent: "conversation"
+
+Chat History:
+{chat_history}"""
 }

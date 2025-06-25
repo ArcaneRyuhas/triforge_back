@@ -10,7 +10,7 @@ from src.api.routes.diagram import router as diagram_router
 from src.api.routes.code import router as code_router
 from src.api.routes.jira import router as jira_router  
 from src.api.routes.requirements import router as requirements_router
-from src.api.routes.auth import router as auth_router  
+from src.api.routes.unified import router as unified_router
 from src.utils.logger import configure_logging
 import tracemalloc
 import logging
@@ -48,14 +48,16 @@ async def unauthorized_exception_handler(request: Request, exc):
         headers={"WWW-Authenticate": "Bearer"}
     )
 
+""" DEPRECATED ROUTES
+#app.include_router(requirements_router)
+#app.include_router(conversation_router)
+#app.include_router(documentation_router)
+#app.include_router(diagram_router) """
+
 app.include_router(session_router) 
-app.include_router(auth_router) 
-app.include_router(conversation_router)
-app.include_router(documentation_router)
-app.include_router(diagram_router)
 app.include_router(code_router)
 app.include_router(jira_router)
-app.include_router(requirements_router)
+app.include_router(unified_router)
 
 @app.get("/", response_model=HealthResponse)
 def read_root():

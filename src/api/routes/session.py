@@ -1,5 +1,3 @@
-# Create new file: src/api/routes/session.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -18,9 +16,13 @@ import base64
 router = APIRouter(prefix="/session", tags=["session"])
 logger = logging.getLogger(__name__)
 
-# Request/Response Models
 class LoginRequest(BaseModel):
     username: str
+    password: str
+    
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
     password: str
 
 class RefreshTokenRequest(BaseModel):
