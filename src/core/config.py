@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
     debug: bool = False
 
+    database_url: str 
+    memory_max_tokens: int = 2000
+    memory_auto_save_interval: int = 300
+    enable_memory_persistence: bool = True
+    
     jira_client_id: str
     jira_client_secret: str
     jira_redirect_uri: str

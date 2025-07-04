@@ -4,12 +4,9 @@ from fastapi.responses import JSONResponse
 from src.core.config import settings
 from src.models.responses import HealthResponse
 from src.api.routes.conversation import router as conversation_router
-from src.api.routes.documentation import router as documentation_router
 from src.api.routes.session import router as session_router
-from src.api.routes.diagram import router as diagram_router
 from src.api.routes.code import router as code_router
 from src.api.routes.jira import router as jira_router  
-from src.api.routes.requirements import router as requirements_router
 from src.api.routes.unified import router as unified_router
 from src.utils.logger import configure_logging
 import tracemalloc

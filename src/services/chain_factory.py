@@ -2,14 +2,15 @@ from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from typing import Dict
 from src.services.ai_service import ai_service
-from src.services.memory_service import memory_service
+from src.services.project_memory_service import project_memory_service
 from src.utils.prompts import PROMPT_TEMPLATES
 
 class ChainFactory:
+    """Updated chain factory with project-scoped memory support"""
     
     @staticmethod
-    def create_documentation_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for generating Jira stories."""
+    def create_documentation_chain(user_id: str, project_id: str) -> LLMChain:
+        """Create a specialized chain for generating Jira stories with project context."""
         llm = ai_service.create_llm(temperature=0.4, max_tokens=400)
         
         prompt = PromptTemplate(
@@ -17,90 +18,12 @@ class ChainFactory:
             template=PROMPT_TEMPLATES["jira_generation"]
         )
         
-        memory = memory_service.get_or_create_memory(user_id)
+        memory = project_memory_service.get_or_create_memory(user_id, project_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
     
     @staticmethod
-    def create_jira_modification_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for modifying existing Jira stories."""
-        llm = ai_service.create_llm(temperature=0.1, max_tokens=400)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["jira_modification"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_diagram_generation_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for generating diagrams."""
-        llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["diagram_generation"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_diagram_modification_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for modifying diagrams."""
-        llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["diagram_modification"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_code_generation_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for generating code."""
-        llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["code_generation"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_code_modification_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for modifying code."""
-        llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["code_modification"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_conversation_chain(user_id: str) -> LLMChain:
-        """Create a general conversation chain."""
-        llm = ai_service.create_llm(temperature=0.2, max_tokens=100)
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["conversation"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-    
-    @staticmethod
-    def create_validation_requirements_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for validating requirements."""
+    def create_validation_requirements_chain(user_id: str, project_id: str) -> LLMChain:
+        """Create a specialized chain for validating requirements with project context."""
         llm = ai_service.create_llm(temperature=0.0, max_tokens=300)
         
         prompt = PromptTemplate(
@@ -108,85 +31,44 @@ class ChainFactory:
             template=PROMPT_TEMPLATES["validation_requirements"]
         )
         
+        # Note: Validation chains don't need memory, but we keep the signature consistent
         return LLMChain(llm=llm, prompt=prompt, verbose=False)
-
-    @staticmethod
-    def create_technology_detection_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for detecting technologies from user prompts."""
-        llm = ai_service.create_llm(
-            temperature=0.0, 
-            max_tokens=300
-        )
-        
-        prompt = PromptTemplate(
-            input_variables=["prompt", "context"],
-            template=PROMPT_TEMPLATES["technology_detection"]
-        )
-        
-        return LLMChain(llm=llm, prompt=prompt, verbose=False)
-
-    @staticmethod  
-    def create_project_code_generation_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for generating complete project structures."""
-        llm = ai_service.create_llm(
-            temperature=0.0, 
-            max_tokens=10000
-        )
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["project_code_generation"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
     
     @staticmethod
-    def create_requirements_refinement_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for refining poorly written requirements."""
-        llm = ai_service.create_llm(
-            temperature=0.3,  # Low temperature for consistency
-            max_tokens=800    # More tokens for detailed requirements
-        )
+    def create_requirements_refinement_chain(user_id: str, project_id: str) -> LLMChain:
+        """Create a specialized chain for refining requirements with project context."""
+        llm = ai_service.create_llm(temperature=0.3, max_tokens=800)
         
         prompt = PromptTemplate(
             input_variables=["input", "chat_history"],
             template=PROMPT_TEMPLATES["requirements_refinement"]
         )
         
-        memory = memory_service.get_or_create_memory(user_id)
-        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
-
-    @staticmethod
-    def create_requirements_analysis_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for analyzing requirements documents."""
-        llm = ai_service.create_llm(
-            temperature=0.2,
-            max_tokens=400
-        )
-        
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"],
-            template=PROMPT_TEMPLATES["requirements_analysis"]
-        )
-        
-        memory = memory_service.get_or_create_memory(user_id)
+        memory = project_memory_service.get_or_create_memory(user_id, project_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
     
     @staticmethod
-    def create_intent_detection_chain(user_id: str) -> LLMChain:
-        """Create a specialized chain for detecting user intent."""
-        llm = ai_service.create_llm(
-            temperature=0.0,  # Deterministic for consistent intent detection
-            max_tokens=150   # Small response for just intent
-        )
+    def create_intent_detection_chain(user_id: str, project_id: str) -> LLMChain:
+        """Create a specialized chain for detecting user intent with project context."""
+        llm = ai_service.create_llm(temperature=0.0, max_tokens=150)
         
         prompt = PromptTemplate(
             input_variables=["input", "chat_history"],
             template=PROMPT_TEMPLATES["intent_detection"]
         )
         
-        memory = memory_service.get_or_create_memory(user_id)
+        memory = project_memory_service.get_or_create_memory(user_id, project_id)
+        return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
+
+    # Update all other chain creation methods to include project_id parameter
+    @staticmethod
+    def create_conversation_chain(user_id: str, project_id: str) -> LLMChain:
+        llm = ai_service.create_llm(temperature=0.2, max_tokens=100)
+        prompt = PromptTemplate(
+            input_variables=["input", "chat_history"],
+            template=PROMPT_TEMPLATES["conversation"]
+        )
+        memory = project_memory_service.get_or_create_memory(user_id, project_id)
         return LLMChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
 chain_factory = ChainFactory()
